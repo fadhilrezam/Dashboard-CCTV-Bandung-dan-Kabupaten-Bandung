@@ -24,7 +24,7 @@ video{width:100%;height:100%;max-height:310px;background:#000;object-fit:contain
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}button{background:#1b3859;color:#dcecff;border:1px solid #34577e;padding:8px 11px;border-radius:7px;cursor:pointer}button:hover{background:#24517e}
 .status{font-size:12px;margin-top:10px;color:#f0c878}.status.ok{color:var(--green)}
 .leaflet-popup-content{color:#172235}.leaflet-container{font:13px system-ui}
-.cctv-label{font-size:9px;font-weight:700;color:#0b1220;background:rgba(255,255,255,0.9);padding:1px 5px;border-radius:4px;border:1px solid #bbb;box-shadow:0 1px 3px rgba(0,0,0,0.3);white-space:nowrap;pointer-events:none;z-index:1000}
+.cctv-label{font-size:10px;font-weight:600;color:#fff;text-shadow:0 0 3px #000,0 0 5px #000,0 0 7px #000;white-space:nowrap;pointer-events:none;z-index:1000;display:inline-block;max-width:160px;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:850px){.layout{grid-template-columns:1fr;height:auto;min-height:calc(100vh - 66px)}.sidebar{height:42vh;min-height:260px;border-right:0}.main{height:78vh;grid-template-rows:55% 45%}.player{grid-template-columns:1fr;grid-template-rows:1fr auto}.info{border-left:0;border-top:1px solid var(--line);padding:10px}.video-wrap video{max-height:none}.sub.desktop{display:none}}
 </style></head><body>
 <header><div><div class="brand">CCTV Bandung · Dashboard Gabungan</div><div class="sub">Peta terpadu Dishub Kabupaten Bandung &amp; PELINDUNG Kota Bandung</div></div><div class="sub desktop">Peta OpenStreetMap · pemutar CCTV via koneksi lokal</div></header>
@@ -62,7 +62,7 @@ $('search').addEventListener('input',render);$('source').addEventListener('chang
 $('retry').onclick=()=>{if(selected)selectCamera(selected)};$('openSource').onclick=()=>{if(selected)window.open(selected.originalStream,'_blank','noopener')};
 render();
 function declutterLabels(pts){let shown=[];for(let p of pts){let tooClose=false;for(let s of shown){if(p.point.distanceTo(s.point)<LABEL_MIN_DIST){tooClose=true;break}}if(!tooClose)shown.push(p)}return shown}
-function updateLabels(){labels.clearLayers();if(map.getZoom()<LABEL_MIN_ZOOM)return;let pts=[];currentRows.forEach(c=>{let latlng=L.latLng(c.lat,c.lng);let point=map.latLngToLayerPoint(latlng);pts.push({latlng,name:safe(c.name),point})});let shown=declutterLabels(pts);shown.forEach(p=>{let icon=L.divIcon({className:'cctv-label',html:'<div>'+p.name+'</div>',iconSize:[80,18],iconAnchor:[40,0]});L.marker(p.latlng,{icon,interactive:false,zIndexOffset:1000}).addTo(labels)})}
+function updateLabels(){labels.clearLayers();if(map.getZoom()<LABEL_MIN_ZOOM)return;let pts=[];currentRows.forEach(c=>{let latlng=L.latLng(c.lat,c.lng);let point=map.latLngToLayerPoint(latlng);pts.push({latlng,name:safe(c.name),point})});let shown=declutterLabels(pts);shown.forEach(p=>{let icon=L.divIcon({className:'cctv-label',html:'<div>'+p.name+'</div>'});L.marker(p.latlng,{icon,interactive:false,zIndexOffset:1000}).addTo(labels)})}
 map.on('zoomend moveend',updateLabels);updateLabels();
 setTimeout(()=>map.invalidateSize(true),250);window.addEventListener('resize',()=>map.invalidateSize());
 const group=cameras.filter(c=>c.lat&&c.lng);if(group.length){let b=L.latLngBounds(group.map(c=>[c.lat,c.lng]));map.fitBounds(b.pad(.08))}
