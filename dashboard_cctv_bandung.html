@@ -24,6 +24,7 @@ video{width:100%;height:100%;max-height:310px;background:#000;object-fit:contain
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}button{background:#1b3859;color:#dcecff;border:1px solid #34577e;padding:8px 11px;border-radius:7px;cursor:pointer}button:hover{background:#24517e}
 .status{font-size:12px;margin-top:10px;color:#f0c878}.status.ok{color:var(--green)}
 .leaflet-popup-content{color:#172235}.leaflet-container{font:13px system-ui}
+.cctv-label{font-size:11px;font-weight:700;color:#0b1220;background:rgba(255,255,255,0.9);padding:2px 6px;border-radius:4px;border:1px solid #bbb;box-shadow:0 1px 3px rgba(0,0,0,0.3);white-space:nowrap;pointer-events:none;z-index:1000}
 @media(max-width:850px){.layout{grid-template-columns:1fr;height:auto;min-height:calc(100vh - 66px)}.sidebar{height:42vh;min-height:260px;border-right:0}.main{height:78vh;grid-template-rows:55% 45%}.player{grid-template-columns:1fr;grid-template-rows:1fr auto}.info{border-left:0;border-top:1px solid var(--line);padding:10px}.video-wrap video{max-height:none}.sub.desktop{display:none}}
 </style></head><body>
 <header><div><div class="brand">CCTV Bandung · Dashboard Gabungan</div><div class="sub">Peta terpadu Dishub Kabupaten Bandung &amp; PELINDUNG Kota Bandung</div></div><div class="sub desktop">Peta OpenStreetMap · pemutar CCTV via koneksi lokal</div></header>
@@ -40,12 +41,12 @@ cameras.forEach(c=>{c.originalStream=c.stream;c.stream='/proxy?url='+encodeURICo
 const map=L.map('map',{preferCanvas:false, zoomControl:true}).setView([-6.94,107.62],10);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
 const markers=L.layerGroup().addTo(map), markerById=new Map();
-const $=id=>document.getElementById(id); let selected=null,hls=null;
+const $=id=>document.getElementById(id); let selected=null,hls=null,currentRows=[]; const labels=L.layerGroup().addTo(map); const LABEL_MIN_ZOOM=13; const LABEL_MIN_DIST=45;
 $('total').textContent=cameras.length;
 [...new Set(cameras.map(c=>c.agency).filter(Boolean))].sort().forEach(a=>{let o=document.createElement('option');o.value=a;o.textContent=a;$('agency').appendChild(o)});
 function safe(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function filtered(){let q=$('search').value.toLowerCase(),s=$('source').value,a=$('agency').value;return cameras.filter(c=>(!q||(c.name+' '+c.agency+' '+c.source).toLowerCase().includes(q))&&(!s||c.source===s)&&(!a||c.agency===a))}
-function render(){let rows=filtered();markers.clearLayers();$('cameraList').innerHTML='';markerById.clear();rows.forEach(c=>{let key=c.source+'-'+c.id;let m=L.circleMarker([c.lat,c.lng],{radius:c.source==='PELINDUNG'?6:8,color:'#ffffff',weight:1.5,fillColor:c.source==='PELINDUNG'?'#1687ff':'#ff8a24',fillOpacity:.95}).addTo(markers).bindTooltip(safe(c.name));m.on('click',()=>selectCamera(c));markerById.set(key,m);
+function render(){let rows=filtered();currentRows=rows;markers.clearLayers();labels.clearLayers();$('cameraList').innerHTML='';markerById.clear();rows.forEach(c=>{let key=c.source+'-'+c.id;let m=L.circleMarker([c.lat,c.lng],{radius:c.source==='PELINDUNG'?12:18,color:'#ffffff',weight:2,fillColor:c.source==='PELINDUNG'?'#1687ff':'#ff8a24',fillOpacity:.95}).addTo(markers).bindTooltip(safe(c.name));m.on('click',()=>selectCamera(c));markerById.set(key,m);
 let el=document.createElement('div');el.className='camera'+(selected&&selected.source===c.source&&selected.id===c.id?' active':'');el.innerHTML='<div class="camname">'+safe(c.name)+' <span class="tag">'+safe(c.source==='PELINDUNG'?'PELINDUNG':'DISHUB')+'</span></div><div class="meta">'+safe(c.agency)+' · '+c.lat.toFixed(5)+', '+c.lng.toFixed(5)+'</div>';el.onclick=()=>{map.setView([c.lat,c.lng],Math.max(map.getZoom(),14));selectCamera(c)};$('cameraList').appendChild(el)});
 $('shown').textContent=rows.length;$('countlabel').textContent=rows.length+' kamera';
 }
@@ -60,6 +61,9 @@ $('status').textContent='Browser tidak mendukung HLS. Coba browser modern.';
 $('search').addEventListener('input',render);$('source').addEventListener('change',render);$('agency').addEventListener('change',render);
 $('retry').onclick=()=>{if(selected)selectCamera(selected)};$('openSource').onclick=()=>{if(selected)window.open(selected.originalStream,'_blank','noopener')};
 render();
+function declutterLabels(pts){let shown=[];for(let p of pts){let tooClose=false;for(let s of shown){if(p.point.distanceTo(s.point)<LABEL_MIN_DIST){tooClose=true;break}}if(!tooClose)shown.push(p)}return shown}
+function updateLabels(){labels.clearLayers();if(map.getZoom()<LABEL_MIN_ZOOM)return;let pts=[];currentRows.forEach(c=>{let latlng=L.latLng(c.lat,c.lng);let point=map.latLngToLayerPoint(latlng);pts.push({latlng,name:safe(c.name),point})});let shown=declutterLabels(pts);shown.forEach(p=>{let icon=L.divIcon({className:'cctv-label',html:'<div>'+p.name+'</div>',iconSize:[80,18],iconAnchor:[40,0]});L.marker(p.latlng,{icon,interactive:false,zIndexOffset:1000}).addTo(labels)})}
+map.on('zoomend moveend',updateLabels);updateLabels();
 setTimeout(()=>map.invalidateSize(true),250);window.addEventListener('resize',()=>map.invalidateSize());
 const group=cameras.filter(c=>c.lat&&c.lng);if(group.length){let b=L.latLngBounds(group.map(c=>[c.lat,c.lng]));map.fitBounds(b.pad(.08))}
 </script></body></html>
